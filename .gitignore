@@ -27,7 +27,7 @@ MANIFEST
 
 # --- uv (Herramienta de paquetes) ---
 .uv
-uv.lock
+# uv.lock
 
 # --- Docker & Bases de Datos ---
 # Si tu docker-compose guarda datos en una carpeta local
