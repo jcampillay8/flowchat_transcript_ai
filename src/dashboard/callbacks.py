@@ -1,13 +1,14 @@
 # src/dashboard/callbacks.py
-from dash import Output, Input, State, html, dcc, callback_context
+from dash import Output, Input, State, html, dcc, callback_context, no_update
 import dash_bootstrap_components as dbc
+import base64
 from src.services.media_processor import MediaProcessorService
 
-# Instanciamos el servicio. 
-# Nota: Si el error persiste, asegúrate de que exista un archivo src/services/__init__.py
+# Instanciamos el servicio
 processor = MediaProcessorService()
 
 def register_callbacks(app):
+    
     # 1. Feedback visual al seleccionar un archivo local
     @app.callback(
         Output('upload-text', 'children'),
@@ -29,18 +30,14 @@ def register_callbacks(app):
             return {"display": "block"}, {"display": "none"}
         return {"display": "none"}, {"display": "block"}
 
-    # 3. CALLBACK PRINCIPAL: Procesa y genera la UI de descarga
+    # 3. CALLBACK DE PROCESAMIENTO: Solo se encarga de la IA y mostrar la UI de éxito
     @app.callback(
         [
             Output("output-status", "children"),
-            Output("download-text", "data"),
-            Output("download-image", "data")
+            Output("store-md", "data"),
+            Output("store-img", "data")
         ],
-        [
-            Input("btn-run", "n_clicks"),
-            Input("btn-download-txt", "n_clicks"),
-            Input("btn-download-img", "n_clicks")
-        ],
+        Input("btn-run", "n_clicks"),
         [
             State("source-type", "value"),
             State("url-input", "value"),
@@ -50,53 +47,62 @@ def register_callbacks(app):
         ],
         prevent_initial_call=True
     )
-    def handle_all_actions(n_run, n_txt, n_img, stype, url, contents, upload_filename, proj_name):
-        ctx = callback_context
-        if not ctx.triggered:
-            return "", None, None
-
-        # Identificamos qué botón disparó el callback
-        trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
-
-        # LÓGICA DE PROCESAMIENTO (Botón principal "Procesar con IA")
-        if trigger_id == "btn-run":
-            if not proj_name:
-                return dbc.Alert("⚠️ El nombre del proyecto es obligatorio.", color="warning"), None, None
-            
-            source_val = url if stype == 'youtube' else upload_filename
-            if not source_val:
-                return dbc.Alert("⚠️ Falta el archivo o la URL de YouTube.", color="warning"), None, None
-
-            try:
-                # El procesamiento ocurre aquí con la lógica de espaciado y fondo blanco que ya configuramos
-                texto_md, img_bytes = processor.procesar_todo(stype, source_val, proj_name, contents)
-                
-                # Creamos la UI de éxito que contiene los botones con IDs específicos
-                success_ui = dbc.Card([
-                    dbc.CardBody([
-                        html.H4("🚀 ¡Procesamiento Exitoso!", className="text-success fw-bold"),
-                        html.P("El diagrama se ha generado con fondo blanco y espaciado mejorado."),
-                        html.Hr(),
-                        dbc.Row([
-                            dbc.Col(dbc.Button("📥 Descargar Markdown", id="btn-download-txt", color="primary", className="w-100"), width=6),
-                            dbc.Col(dbc.Button("🖼️ Descargar PNG", id="btn-download-img", color="info", className="w-100"), width=6),
-                        ]),
-                    ])
-                ], className="mt-3 shadow-sm border-success")
-
-                # Intentamos disparar las descargas de inmediato (si el navegador lo permite)
-                file_txt = dcc.send_string(texto_md, filename=f"{proj_name}.md")
-                file_img = dcc.send_bytes(img_bytes, filename=f"{proj_name}.png")
-
-                return success_ui, file_txt, file_img
-
-            except Exception as e:
-                print(f"DEBUG Error: {str(e)}")
-                return dbc.Alert(f"❌ Error crítico: {str(e)}", color="danger"), None, None
-
-        # LÓGICA DE DESCARGA MANUAL (Si el usuario hace clic en los botones de la Card)
-        # Dash volverá a ejecutar la lógica o simplemente puedes dejar que el estado 
-        # previo maneje la persistencia si usaras dcc.Store. 
-        # Para este flujo simple, el btn-run ya devuelve los datos.
+    def procesar_con_ia(n_run, stype, url, contents, upload_filename, proj_name):
+        if not proj_name:
+            return dbc.Alert("⚠️ El nombre del proyecto es obligatorio.", color="warning"), None, None
         
-        return "", None, None
+        source_val = url if stype == 'youtube' else upload_filename
+        if not source_val:
+            return dbc.Alert("⚠️ Falta el archivo o la URL de YouTube.", color="warning"), None, None
+
+        try:
+            # Ejecución del servicio de IA
+            texto_md, img_bytes = processor.procesar_todo(stype, source_val, proj_name, contents)
+            
+            # Convertimos los bytes de la imagen a base64 para guardarlos en dcc.Store
+            img_base64 = base64.b64encode(img_bytes).decode('utf-8') if img_bytes else None
+
+            # UI de éxito que se mantiene visible
+            success_ui = dbc.Card([
+                dbc.CardBody([
+                    html.H4("🚀 ¡Procesamiento Exitoso!", className="text-success fw-bold"),
+                    html.P("El diagrama se ha generado con fondo blanco y espaciado mejorado."),
+                    html.Hr(),
+                    dbc.Row([
+                        dbc.Col(dbc.Button("📥 Descargar Markdown", id="btn-download-txt", color="primary", className="w-100"), width=6),
+                        dbc.Col(dbc.Button("🖼️ Descargar PNG", id="btn-download-img", color="info", className="w-100"), width=6),
+                    ]),
+                ])
+            ], className="mt-3 shadow-sm border-success")
+
+            return success_ui, texto_md, img_base64
+
+        except Exception as e:
+            print(f"DEBUG Error: {str(e)}")
+            return dbc.Alert(f"❌ Error crítico: {str(e)}", color="danger"), None, None
+
+    # 4. CALLBACK DE DESCARGA TXT (Markdown)
+    @app.callback(
+        Output("download-text", "data"),
+        Input("btn-download-txt", "n_clicks"),
+        [State("store-md", "data"), State("name-input", "value")],
+        prevent_initial_call=True
+    )
+    def descargar_markdown(n_clicks, data_md, proj_name):
+        if n_clicks and data_md:
+            return dcc.send_string(data_md, filename=f"{proj_name}.md")
+        return no_update
+
+    # 5. CALLBACK DE DESCARGA IMG (PNG)
+    @app.callback(
+        Output("download-image", "data"),
+        Input("btn-download-img", "n_clicks"),
+        [State("store-img", "data"), State("name-input", "value")],
+        prevent_initial_call=True
+    )
+    def descargar_png(n_clicks, data_img_b64, proj_name):
+        if n_clicks and data_img_b64:
+            # Re-convertimos de base64 a bytes para la descarga
+            img_bytes = base64.b64decode(data_img_b64)
+            return dcc.send_bytes(img_bytes, filename=f"{proj_name}.png")
+        return no_update

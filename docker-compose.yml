@@ -6,11 +6,8 @@ services:
       - "8050:8080"
     volumes:
       - .:/app
-      # Evitamos que el .venv local (de tu Arch) choque con el del contenedor (Debian slim)
-      - /app/.venv 
-    env_file:
-      - .env
+      - /app/.venv  # Correcto: evita colisión de venv
     environment:
       - ENVIRONMENT=development
-      - PYTHONPATH=/app
-      - UV_VISUAL_PROGRESS=1 # Para ver la barrita de carga de uv en los logs
+      - PYTHONPATH=/app  # Esto es vital
+      - UV_LINK_MODE=copy # Evita el error de hardlink en Docker

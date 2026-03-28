@@ -3,11 +3,16 @@ from dash import dcc, html
 import dash_bootstrap_components as dbc
 
 layout = dbc.Container([
-    # Componentes invisibles que gestionan la transferencia de archivos al navegador
+    # 1. COMPONENTES DE ESTADO (Invisibles)
+    # Almacenan los datos en el navegador para permitir descargas sin re-procesar
+    dcc.Store(id='store-md'),
+    dcc.Store(id='store-img'),
+
+    # 2. COMPONENTES DE TRANSFERENCIA (Invisibles)
     dcc.Download(id="download-text"),
     dcc.Download(id="download-image"),
 
-    # Encabezado principal
+    # 3. ENCABEZADO PRINCIPAL
     dbc.Row([
         dbc.Col([
             html.H1([
@@ -19,13 +24,16 @@ layout = dbc.Container([
         ], width=12)
     ]),
     
+    # 4. FORMULARIO DE CONFIGURACIÓN
     dbc.Row([
         dbc.Col([
             dbc.Card([
-                dbc.CardHeader(html.H5("Configuración del Proyecto", className="mb-0 text-white"), 
-                               className="bg-primary"),
+                dbc.CardHeader(
+                    html.H5("Configuración del Proyecto", className="mb-0 text-white"), 
+                    className="bg-primary"
+                ),
                 dbc.CardBody([
-                    # 1. Selección de Origen
+                    # Selección de Origen
                     dbc.Label("1. Selecciona el origen del contenido:", className="fw-bold"),
                     dbc.RadioItems(
                         id="source-type",
@@ -38,15 +46,19 @@ layout = dbc.Container([
                         className="mb-3 p-2 bg-light rounded border"
                     ),
                     
-                    # Input para YouTube
+                    # Contenedor para Input de YouTube
                     html.Div([
                         dbc.InputGroup([
                             dbc.InputGroupText(html.I(className="bi bi-youtube text-danger")),
-                            dbc.Input(id="url-input", placeholder="https://www.youtube.com/watch?v=...", type="text"),
+                            dbc.Input(
+                                id="url-input", 
+                                placeholder="https://www.youtube.com/watch?v=...", 
+                                type="text"
+                            ),
                         ])
                     ], id="url-container", style={'display': 'block'}),
                     
-                    # Input para Carga de Archivo
+                    # Contenedor para Carga de Archivo
                     html.Div([
                         dcc.Upload(
                             id='upload-data',
@@ -66,17 +78,24 @@ layout = dbc.Container([
                     
                     html.Hr(),
                     
-                    # 2. Nombre del Proyecto
+                    # Nombre del Proyecto
                     dbc.Label("2. Nombre del Proyecto:", className="fw-bold"),
                     dbc.InputGroup([
                         dbc.InputGroupText(html.I(className="bi bi-folder2-open")),
-                        dbc.Input(id="name-input", placeholder="Ej: Analisis_Mercado_2026", type="text"),
+                        dbc.Input(
+                            id="name-input", 
+                            placeholder="Ej: Analisis_Mercado_2026", 
+                            type="text"
+                        ),
                     ]),
-                    html.Small("Este nombre se usará para nombrar tus archivos .md y .png", className="text-muted"),
+                    html.Small(
+                        "Este nombre se usará para nombrar tus archivos .md y .png", 
+                        className="text-muted"
+                    ),
                     
                     html.Br(),
                     
-                    # Botón de Acción
+                    # Botón de Acción Principal
                     dbc.Button(
                         [html.I(className="bi bi-cpu-fill me-2"), "Procesar con IA"], 
                         id="btn-run", 
@@ -87,30 +106,34 @@ layout = dbc.Container([
                     ),
                 ])
             ], className="shadow-lg border-0 rounded-3")
-        ], lg=5, md=8, xs=12) # Ajuste responsivo
+        ], lg=5, md=8, xs=12)
     ], justify="center"),
     
     html.Br(),
     
-    # Área de Resultados y Feedback
+    # 5. ÁREA DE RESULTADOS Y FEEDBACK (Donde ocurre la magia)
     dbc.Row([
         dbc.Col([
             dcc.Loading(
                 id="loading-output", 
-                type="graph", 
-                color="#0d6efd",
-                children=[
-                    # Aquí el Callback inyectará el Card de éxito con los botones de descarga
-                    html.Div(id="output-status") 
-                ]
+                type="circle", # Spinner circular clásico, más confiable que 'graph'
+                color="#007bff",
+                children=html.Div(
+                    id="output-status", 
+                    style={"minHeight": "120px"} # Espacio mínimo para que el spinner sea visible
+                )
             ),
             
-            # Botones de descarga "fantasma" (para que existan en el DOM antes de ser llamados)
+            # Botones de descarga invisibles que actúan como placeholders
+            # Esto ayuda a Dash a registrar los IDs antes de que la tarjeta de éxito aparezca
             html.Div([
-                dbc.Button(id="btn-download-txt", style={"display": "none"}),
-                dbc.Button(id="btn-download-img", style={"display": "none"}),
+                dbc.Button(id="btn-download-txt", n_clicks=0, style={"display": "none"}),
+                dbc.Button(id="btn-download-img", n_clicks=0, style={"display": "none"}),
             ])
         ], width=10, lg=6)
     ], justify="center", className="mb-5")
 
-], fluid=True, className="p-0 bg-light", style={"minHeight": "100vh", "fontFamily": "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"})
+], fluid=True, className="p-0 bg-light", style={
+    "minHeight": "100vh", 
+    "fontFamily": "'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+})
