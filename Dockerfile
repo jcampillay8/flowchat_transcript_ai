@@ -1,16 +1,17 @@
 FROM python:3.11-slim
 
-# Instalamos uv directamente desde el binario oficial
+# 1. Instalamos uv desde el binario oficial
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+# 2. Variables de entorno de Python y UV
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
-ENV PORT=8080
+ENV UV_LINK_MODE=copy
 
 WORKDIR /app
 
-# Dependencias de sistema (FFmpeg y Graphviz siguen siendo obligatorios)
+# 3. Dependencias de sistema (FFmpeg para audio y Graphviz para diagramas)
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     graphviz \
@@ -18,18 +19,18 @@ RUN apt-get update && apt-get install -y \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# En vez de requirements.txt, copiamos los archivos de uv
+# 4. Copiamos los archivos de configuración de dependencias primero
 COPY pyproject.toml uv.lock ./
 
-# Instalamos las dependencias sin instalar el proyecto todavía (para cachear capas)
-# --frozen evita que uv intente actualizar el lockfile
-RUN uv sync --no-install-project
+# 5. Instalamos dependencias (sin el proyecto aún para aprovechar el cache)
+RUN uv sync --no-install-project --frozen
 
-# Copiamos el resto
+# 6. Copiamos todo el código fuente (incluyendo la carpeta src)
 COPY . .
 
-# Exponemos puerto
-EXPOSE 8080
+# 7. Instalamos el proyecto final
+RUN uv sync --frozen
 
-# Ejecutamos usando 'uv run' para asegurar que use el venv gestionado por uv
-CMD ["uv", "run", "gunicorn", "-w", "2", "--threads", "4", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8080", "src.main:app"]
+# 8. Comando de ejecución para Railway (USA EL PUERTO DINÁMICO)
+# Importante: Railway inyecta la variable $PORT. Gunicorn debe escuchar ahí.
+CMD ["sh", "-c", "uv run gunicorn -w 2 --threads 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT src.main:app"]
