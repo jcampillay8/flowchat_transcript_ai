@@ -1,0 +1,16 @@
+services:
+  app:
+    build: .
+    container_name: flowchart_ai_app
+    ports:
+      - "8050:8080"
+    volumes:
+      - .:/app
+      # Evitamos que el .venv local (de tu Arch) choque con el del contenedor (Debian slim)
+      - /app/.venv 
+    env_file:
+      - .env
+    environment:
+      - ENVIRONMENT=development
+      - PYTHONPATH=/app
+      - UV_VISUAL_PROGRESS=1 # Para ver la barrita de carga de uv en los logs

@@ -1,0 +1,57 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# --- uv (Herramienta de paquetes) ---
+.uv
+uv.lock
+
+# --- Docker & Bases de Datos ---
+# Si tu docker-compose guarda datos en una carpeta local
+postgres_data/
+pgadmin_data/
+*.db
+*.sqlite
+
+# --- Archivos del Sistema / IDEs ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Logs y archivos temporales ---
+*.log
+gunicorn.ctl
+.ipynb_checkpoints/
+
+# --- Seguridad ---
+.env
+
+# --- Datos pesados ---
+# Esto evita que subas los CSV que pesan cientos de MB
+Data/*.csv
+
+ejemplos/
